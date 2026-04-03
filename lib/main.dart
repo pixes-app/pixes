@@ -6,7 +6,6 @@ import "package:fluent_ui/fluent_ui.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart" as md;
 import "package:flutter/services.dart";
-import "package:flutter_acrylic/flutter_acrylic.dart" as flutter_acrylic;
 import "package:pixes/appdata.dart";
 import "package:pixes/components/keyboard.dart";
 import "package:pixes/components/md.dart";
@@ -37,10 +36,6 @@ void main() {
     HistoryManager().init();
     handleLinks();
     if (App.isDesktop) {
-      await flutter_acrylic.Window.initialize();
-      if (App.isWindows) {
-        await flutter_acrylic.Window.hideWindowControls();
-      }
       await WindowManager.instance.ensureInitialized();
       windowManager.waitUntilReadyToShow().then((_) async {
         await windowManager.setTitleBarStyle(
@@ -161,34 +156,6 @@ class MyApp extends StatelessWidget {
                           child: OverlayWidget(child),
                         ),
                       );
-
-                      if (App.isWindows) {
-                        if (App.windowsVersion == 11) {
-                          flutter_acrylic.Window.setEffect(
-                              effect: flutter_acrylic.WindowEffect.mica,
-                              dark: FluentTheme.of(context).brightness ==
-                                  Brightness.dark);
-                          widget = NavigationPaneTheme(
-                            data: const NavigationPaneThemeData(
-                              backgroundColor: Colors.transparent,
-                            ),
-                            child: widget,
-                          );
-                        } /* else if (App.windowsVersion == 10) {
-                          flutter_acrylic.Window.setEffect(
-                              effect: flutter_acrylic.WindowEffect.acrylic,
-                              dark: FluentTheme.of(context).brightness ==
-                                  Brightness.dark);
-                          widget = NavigationPaneTheme(
-                            data: NavigationPaneThemeData(
-                              backgroundColor: FluentTheme.of(context)
-                                  .micaBackgroundColor
-                                  .withOpacity(0.72),
-                            ),
-                            child: widget,
-                          );
-                        }*/
-                      }
 
                       return KeyEventListener(child: widget);
                     });

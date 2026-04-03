@@ -37,10 +37,10 @@ packages:
     dependency: "direct main"
     description:
       name: archive
-      sha256: "2fde1607386ab523f7a36bb3e7edb43bd58e6edaf2ffb29d8a6d578b297fdbbd"
+      sha256: a96e8b390886ee8abb49b7bd3ac8df6f451c621619f52a26e815fdcf568959ff
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.7"
+    version: "4.0.9"
   async:
     dependency: transitive
     description:
@@ -246,14 +246,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_acrylic:
-    dependency: "direct main"
-    description:
-      name: flutter_acrylic
-      sha256: "646200d98e8dd2bd4ab931d4ba4f6b4cb899475d6401414017ba5d71b0fac42b"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0+2"
   flutter_file_dialog:
     dependency: "direct main"
     description:
@@ -499,7 +491,7 @@ packages:
       path: "."
       ref: main
       resolved-ref: a1255d1b5945aad4b7323303ec2ecdf0c90ffc4c
-      url: "https://github.com/wgh136/photo_view"
+      url: "https://github.com/venera-app/photo_view"
     source: git
     version: "0.14.0"
   platform:
@@ -522,10 +514,10 @@ packages:
     dependency: transitive
     description:
       name: posix
-      sha256: "6323a5b0fa688b6a010df4905a56b00181479e6d10534cecfecede2aa55add61"
+      sha256: "185ef7606574f789b40f289c233efa52e96dead518aed988e040a10737febb07"
       url: "https://pub.dev"
     source: hosted
-    version: "6.0.3"
+    version: "6.5.0"
   recase:
     dependency: transitive
     description:
@@ -853,4 +845,4 @@ packages:
     version: "3.1.3"
 sdks:
   dart: ">=3.9.0-0 <4.0.0"
-  flutter: ">=3.35.6"
+  flutter: ">=3.41.6"
