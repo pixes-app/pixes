@@ -294,6 +294,10 @@ class _MainPageState extends State<MainPage>
                 alignment: AlignmentDirectional.centerStart,
                 child: Row(
                   children: [
+                    if (App.isMacOS)
+                      const SizedBox(width: 72),
+                    if (App.isMacOS)
+                      _MacosBackButton(navigatorKey).paddingRight(8),
                     if (!App.isDesktop)
                       const Text(
                         "Pixes",
@@ -357,8 +361,8 @@ class _MainPageState extends State<MainPage>
           },
         );
       }(),
-      leading: _BackButton(navigatorKey),
-      actions: App.isDesktop
+      leading: App.isMacOS ? null : _BackButton(navigatorKey),
+      actions: App.isDesktop && !App.isMacOS
           ? WindowButtons(
               key: ValueKey(windowButtonKey),
             )
@@ -458,6 +462,83 @@ class _BackButtonState extends State<_BackButton> {
               displayMode: PaneDisplayMode.compact,
             )
             .paddingTop(2),
+      ),
+    );
+  }
+}
+
+class _MacosBackButton extends StatefulWidget {
+  const _MacosBackButton(this.navigatorKey);
+
+  final GlobalKey<NavigatorState> navigatorKey;
+
+  @override
+  State<_MacosBackButton> createState() => __MacosBackButtonState();
+}
+
+class __MacosBackButtonState extends State<_MacosBackButton> {
+  GlobalKey<NavigatorState> get navigatorKey => widget.navigatorKey;
+
+  bool enabled = false;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    enabled = navigatorKey.currentState?.canPop() == true;
+    Loop.register(loop);
+    super.initState();
+  }
+
+  void loop() {
+    bool enabled = navigatorKey.currentState?.canPop() == true;
+    if (enabled != this.enabled) {
+      setState(() {
+        this.enabled = enabled;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    Loop.remove(loop);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FluentTheme.of(context);
+    final iconColor = enabled
+        ? theme.iconTheme.color ?? Colors.black
+        : (theme.iconTheme.color ?? Colors.black).toOpacity(0.3);
+    final bgColor = (_isHovered && enabled)
+        ? theme.inactiveBackgroundColor
+        : theme.micaBackgroundColor;
+
+    return GestureDetector(
+      onTap: enabled
+          ? () {
+              if (navigatorKey.currentState?.canPop() ?? false) {
+                navigatorKey.currentState?.pop();
+              }
+            }
+          : null,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          padding: const EdgeInsets.all(4),
+          child: Icon(
+            FluentIcons.back,
+            size: 14,
+            color: iconColor,
+          ),
+        ),
       ),
     );
   }

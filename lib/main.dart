@@ -45,7 +45,7 @@ void main() {
       windowManager.waitUntilReadyToShow().then((_) async {
         await windowManager.setTitleBarStyle(
           TitleBarStyle.hidden,
-          windowButtonVisibility: false,
+          windowButtonVisibility: App.isMacOS,
         );
         if (App.isLinux) {
           // https://github.com/leanflutter/window_manager/issues/460
