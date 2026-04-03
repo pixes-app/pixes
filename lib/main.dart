@@ -46,7 +46,12 @@ void main() {
           // https://github.com/leanflutter/window_manager/issues/460
           return;
         }
-        await windowManager.setMinimumSize(const Size(500, 600));
+       
+        if (App.isMacOS) {
+          await windowManager.setMinimumSize(const Size(650, 600));
+        } else {
+          await windowManager.setMinimumSize(const Size(500, 600));
+        }
         var placement = await WindowPlacement.loadFromFile();
         await placement.applyToWindow();
         await windowManager.show();
