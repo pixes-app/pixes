@@ -207,6 +207,8 @@ class _ImagePageState extends State<ImagePage> with WindowListener {
                     height: 36,
                     child: Row(
                       children: [
+                        if (App.isMacOS)
+                          const SizedBox(width: 72),
                         const SizedBox(
                           width: 6,
                         ),
@@ -219,7 +221,9 @@ class _ImagePageState extends State<ImagePage> with WindowListener {
                           ),
                         ),
                         buildActions(),
-                        if (App.isDesktop)
+                        if (App.isMacOS)
+                          const SizedBox(width: 16),
+                        if (App.isWindows || App.isLinux)
                           WindowButtons(
                             key: ValueKey(windowButtonKey),
                           ),
