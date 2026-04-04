@@ -18,6 +18,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>pixiv</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>pixiv</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSMinimumSystemVersion</key>
@@ -28,19 +39,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-	<key>CFBundleURLTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleURLName</key>
-            <!-- abstract name for this URL type (you can leave it blank) -->
-            <string>pixiv</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <string>pixiv</string>
-            </array>
-        </dict>
-    </array>
-    <key>com.apple.security.files.user-selected.read-write</key>
-    <true/>
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
 </dict>
 </plist>

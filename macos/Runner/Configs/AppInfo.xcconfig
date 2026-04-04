@@ -8,7 +8,7 @@
 PRODUCT_NAME = pixes
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.github.wgh136.pixes
+PRODUCT_BUNDLE_IDENTIFIER = dev.nyne.pixes
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2024 com.github.wgh136. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 dev.nyne. All rights reserved.

@@ -7,25 +7,52 @@ on:
 
 jobs:
   Build_MacOS:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
-          architecture: x64
+          channel: "stable"
           flutter-version-file: pubspec.yaml
-      - run: sudo xcode-select --switch /Applications/Xcode_16.0.app
+      - run: sudo xcode-select --switch /Applications/Xcode_26.4.0.app
       - run: flutter pub get
-      - run: flutter build macos --release
-      - run: |
-          cd build/macos/Build/Products/Release
-          chmod +x pixes.app/Contents/MacOS/pixes
-          zip -r macos.zip pixes.app
-      - uses: actions/upload-artifact@v4
+        # Step 1: Decode and install the certificate
+      - name: Decode and install certificate
+        env:
+          CERTIFICATE: ${{ secrets.CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$CERTIFICATE" | base64 --decode > signing_certificate.p12
+          security import signing_certificate.p12 -k ~/Library/Keychains/login.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+
+      - name: Check rust-toolchain.toml
+        run: rustup show
+
+      # Step 2: Build the Flutter macOS app
+      - name: Build Flutter macOS App
+        run: flutter build macos --release
+
+      # Step 3: Create the DMG file
+      - name: Create DMG
+        run: |
+          mkdir -p dist
+          mkdir -p dist/dmg_contents
+          cp -R build/macos/Build/Products/Release/pixes.app dist/dmg_contents/
+          ln -s /Applications dist/dmg_contents/Applications
+          hdiutil create -volname "pixes" -srcfolder dist/dmg_contents -ov -format UDZO "dist/pixes.dmg"
+
+      - name: Add version to filename
+        run: |
+          APP_VERSION=$(grep "version:" pubspec.yaml | cut -d':' -f2 | tr -d ' ')
+          mkdir -p result
+          mv dist/pixes.dmg result/pixes-$APP_VERSION.dmg
+
+      # Step 4: Attach and upload artifacts (optional)
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
         with:
-          name: macos.zip
-          path: build/macos/Build/Products/Release/macos.zip
+          name: macos_build
+          path: result/
   Build_IOS:
     runs-on: macos-15
     steps:
