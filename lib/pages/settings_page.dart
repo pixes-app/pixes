@@ -126,25 +126,32 @@ class _SettingsPageState extends State<SettingsPage> {
           buildItem(
             title: "Download Path".tl,
             subtitle: appdata.settings["downloadPath"],
-            action: Button(
-                child: Text("Manage".tl).fixWidth(64),
-                onPressed: () {
-                  if (Platform.isIOS) {
-                    showToast(context, message: "Unsupported platform".tl);
-                    return;
-                  }
-                  context.to(() => _SetSingleFieldPage(
-                        "Download Path".tl,
-                        "downloadPath",
-                        check: (text) {
-                          if (!Directory(text).havePermission()) {
-                            return "No permission".tl;
-                          } else {
-                            return null;
-                          }
-                        },
-                      ));
-                }),
+            action: App.isMacOS
+                ? _MacosDownloadPathSelectButton(onSelected: (path) {
+                    setState(() {
+                      appdata.settings["downloadPath"] = path;
+                    });
+                    appdata.writeSettings();
+                  })
+                : Button(
+                    child: Text("Manage".tl).fixWidth(64),
+                    onPressed: () {
+                      if (Platform.isIOS) {
+                        showToast(context, message: "Unsupported platform".tl);
+                        return;
+                      }
+                      context.to(() => _SetSingleFieldPage(
+                            "Download Path".tl,
+                            "downloadPath",
+                            check: (text) {
+                              if (!Directory(text).havePermission()) {
+                                return "No permission".tl;
+                              } else {
+                                return null;
+                              }
+                            },
+                          ));
+                    }),
           ),
           buildItem(
             title: "Subpath".tl,
@@ -704,7 +711,9 @@ class _SetInitialPageWidgetState extends State<_SetInitialPageWidget> {
         itemCount: pageNames.length + 2,
         itemBuilder: (context, index) {
           if (index == 3) {
-            return Text('${"Illustrations".tl}/${"Manga".tl}').paddingHorizontal(16).paddingVertical(8);
+            return Text('${"Illustrations".tl}/${"Manga".tl}')
+                .paddingHorizontal(16)
+                .paddingVertical(8);
           } else if (index > 3) {
             index--;
           }
@@ -733,6 +742,57 @@ class _SetInitialPageWidgetState extends State<_SetInitialPageWidget> {
           );
         },
       ),
+    );
+  }
+}
+
+class _MacosDownloadPathSelectButton extends StatefulWidget {
+  const _MacosDownloadPathSelectButton({this.onSelected});
+
+  final void Function(String)? onSelected;
+
+  @override
+  State<_MacosDownloadPathSelectButton> createState() =>
+      _MacosDownloadPathSelectButtonState();
+}
+
+class _MacosDownloadPathSelectButtonState
+    extends State<_MacosDownloadPathSelectButton> {
+  static const _channel = MethodChannel("pixes/macos/download_path");
+
+  bool _selecting = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Button(
+      onPressed: _selecting
+          ? null
+          : () async {
+              setState(() {
+                _selecting = true;
+              });
+              try {
+                final selectedPath = await _channel.invokeMethod<String>(
+                  "selectDownloadDirectory",
+                  {"initialPath": appdata.settings["downloadPath"]},
+                );
+                if (!context.mounted || selectedPath == null) {
+                  return;
+                }
+                widget.onSelected?.call(selectedPath);
+              } on PlatformException catch (e) {
+                if (context.mounted) {
+                  showToast(context, message: e.message ?? e.code);
+                }
+              } finally {
+                if (context.mounted) {
+                  setState(() {
+                    _selecting = false;
+                  });
+                }
+              }
+            },
+      child: Text(_selecting ? "..." : "Manage".tl).fixWidth(64),
     );
   }
 }

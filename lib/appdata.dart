@@ -6,9 +6,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pixes/utils/io.dart';
 
 import 'foundation/app.dart';
+import 'foundation/log.dart';
 import 'network/models.dart';
 
 class _Appdata {
+  static const MethodChannel _macosDownloadPathChannel =
+      MethodChannel("pixes/macos/download_path");
+
   Account? account;
 
   var searchOptions = SearchOptions();
@@ -90,9 +94,84 @@ class _Appdata {
         }
       }
     }
-    if (settings["downloadPath"] == null) {
-      settings["downloadPath"] = await _defaultDownloadPath;
+    settings["downloadPath"] ??= await _defaultDownloadPath;
+    if (App.isMacOS) {
+      await _ensureMacOSDownloadPathPermission();
     }
+  }
+
+  Future<void> _ensureMacOSDownloadPathPermission() async {
+    final defaultPath = await _defaultDownloadPath;
+    final currentPath = settings["downloadPath"] as String? ?? defaultPath;
+    if (_normalizePath(currentPath) == _normalizePath(defaultPath)) {
+      settings["downloadPath"] = defaultPath;
+      return;
+    }
+
+    final restoredPath = await _restoreMacOSDownloadPathAccess(currentPath);
+    if (restoredPath != null) {
+      settings["downloadPath"] = restoredPath;
+      Log.info(
+          "DownloadPath", "Restored macOS directory access: $restoredPath");
+      return;
+    }
+
+    Log.warning(
+      "DownloadPath",
+      "Failed to restore macOS directory access for $currentPath, requesting permission again.",
+    );
+    final selectedPath = await _requestMacOSDownloadPathAccess(currentPath);
+    if (selectedPath != null) {
+      settings["downloadPath"] = selectedPath;
+      writeSettings();
+      Log.info(
+        "DownloadPath",
+        "Re-authorized macOS directory access: $selectedPath",
+      );
+      return;
+    }
+
+    settings["downloadPath"] = defaultPath;
+    writeSettings();
+    Log.warning(
+      "DownloadPath",
+      "macOS directory permission denied or canceled, fallback to default path: $defaultPath",
+    );
+  }
+
+  Future<String?> _restoreMacOSDownloadPathAccess(String? expectedPath) async {
+    try {
+      return await _macosDownloadPathChannel.invokeMethod<String>(
+        "restoreDownloadDirectoryAccess",
+        {"path": expectedPath},
+      );
+    } catch (e) {
+      Log.warning("DownloadPath", "restoreDownloadDirectoryAccess failed: $e");
+      return null;
+    }
+  }
+
+  Future<String?> _requestMacOSDownloadPathAccess(String? initialPath) async {
+    try {
+      return await _macosDownloadPathChannel.invokeMethod<String>(
+        "selectDownloadDirectory",
+        {"initialPath": initialPath},
+      );
+    } catch (e) {
+      Log.warning("DownloadPath", "selectDownloadDirectory failed: $e");
+      return null;
+    }
+  }
+
+  String _normalizePath(String path) {
+    if (!App.isMacOS) {
+      return path;
+    }
+    final home = Platform.environment["HOME"];
+    if (home != null && path.startsWith("~")) {
+      return path.replaceFirst("~", home);
+    }
+    return path;
   }
 
   Future<String> get _defaultDownloadPath async {
@@ -110,10 +189,20 @@ class _Appdata {
       if (res != "error") {
         return res + "/pixes";
       }
-    } else if (App.isMacOS || App.isLinux) {
+    } else if (App.isLinux) {
       var downloadPath = (await getDownloadsDirectory())?.path;
       if (downloadPath != null && Directory(downloadPath).havePermission()) {
         return "$downloadPath/pixes";
+      }
+    } else if (App.isMacOS) {
+      if (Directory("~/Pictures").havePermission()) {
+        return "~/Pictures/pixes";
+      }
+      try {
+        Directory("~/Downloads/pixes").createSync(recursive: true);
+        return "~/Downloads/pixes";
+      } catch (e) {
+        return "${App.dataPath}/download";
       }
     }
 
