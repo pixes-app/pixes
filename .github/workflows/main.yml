@@ -29,7 +29,7 @@ jobs:
   Build_IOS:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -50,7 +50,7 @@ jobs:
   Build_Android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -76,24 +76,31 @@ jobs:
   Build_Windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: install dependencies
         run: |
           choco install yq -y
-          pip install httpx
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
           flutter-version-file: pubspec.yaml
           architecture: x64
+      - name: Decode and install certificate
+        shell: bash
+        env:
+          STORE_FILE: ${{ secrets.WINDOWS_KEYSTORE }}
+        run: |
+          echo "$STORE_FILE" | base64 --decode > windows/app.pfx
       - name: build
+        env:
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
         run: |
           flutter pub get
-          python windows/build.py
+          dart run msix:create -p ${{ env.CERTIFICATE_PASSWORD }}
       - uses: actions/upload-artifact@v4
         with:
           name: windows_build
-          path: build/windows/pixes-*
+          path: build/windows/x64/runner/Release/pixes.msix
   Build_Linux:
     runs-on: ubuntu-latest
     steps:
@@ -143,7 +150,7 @@ jobs:
   Release:
     runs-on: ubuntu-latest
     needs: [Build_MacOS, Build_IOS, Build_Android, Build_Windows, Build_Linux, Build_Linux_ARM64]
-    if: github.event_name == 'release'  # 仅在 push 事件时执行
+    if: github.event_name == 'release'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -173,6 +180,8 @@ jobs:
         with:
           name: deb_arm64_build
           path: outputs
+      - name: Download public key
+        run: wget https://nyne.dev/files/windows_app.cer
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -184,5 +193,7 @@ jobs:
             outputs/*.exe
             outputs/*.deb
             outputs/*.zst
+            outputs/*.msix
+            windows_app.cer
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_GITHUB_TOKEN }}
