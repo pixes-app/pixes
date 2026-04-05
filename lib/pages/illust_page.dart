@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/services.dart';
 import 'package:pixes/appdata.dart';
@@ -208,8 +209,6 @@ class _IllustPageState extends State<IllustPage> {
 
   KeyEventListenerState? keyboardListener;
 
-  double _bottomBarHeight = 200;
-
   @override
   void initState() {
     keyboardListener = KeyEventListener.of(context);
@@ -243,71 +242,33 @@ class _IllustPageState extends State<IllustPage> {
         child: ColoredBox(
           color: FluentTheme.of(context).scaffoldBackgroundColor,
           child: LayoutBuilder(builder: (context, constrains) {
-            return ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-              child: Scrollbar(
-                controller: scrollController,
-                child: Stack(
-                  children: [
-                    if (!isBlocked)
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        top: 0,
-                        child: buildBody(constrains.maxWidth, constrains.maxHeight),
-                      ),
-                    if (!isBlocked)
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: AnimatedBuilder(
-                          animation: scrollController,
-                          builder: (context, child) {
-                            double dy = _bottomBarHeight - _kBottomBarHeight - context.padding.bottom;
-                            if (dy < 0) dy = 0;
-                            if (scrollController.hasClients) {
-                              var maxScroll = scrollController.position.maxScrollExtent;
-                              var pixels = scrollController.position.pixels;
-                              var revealAmount = pixels - (maxScroll - dy);
-                              if (revealAmount > 0) {
-                                dy = dy - revealAmount;
-                                if (dy < 0) dy = 0;
-                              }
-                            }
-                            return Transform.translate(
-                              offset: Offset(0, dy),
-                              child: child,
-                            );
-                          },
-                          child: _BottomBar(
-                            widget.illust,
-                            updateCallback: () => setState(() {}),
-                            controller: _bottomBarController,
-                            onHeightChanged: (h) {
-                              if (_bottomBarHeight != h) {
-                                if (mounted) {
-                                  setState(() {
-                                    _bottomBarHeight = h;
-                                  });
-                                }
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    if (isBlocked)
-                      const Positioned.fill(
-                          child: Center(
-                        child: Center(
-                            child: Text(
-                          "This artwork is blocked",
-                        )),
-                      ))
-                  ],
-                ),
-              ),
+            return Stack(
+              children: [
+                if (!isBlocked)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    child: buildBody(constrains.maxWidth, constrains.maxHeight),
+                  ),
+                if (!isBlocked)
+                  _BottomBar(
+                    widget.illust,
+                    constrains.maxHeight,
+                    constrains.maxWidth,
+                    updateCallback: () => setState(() {}),
+                    controller: _bottomBarController,
+                  ),
+                if (isBlocked)
+                  const Positioned.fill(
+                      child: Center(
+                    child: Center(
+                        child: Text(
+                      "This artwork is blocked",
+                    )),
+                  ))
+              ],
             );
           }),
         ),
@@ -324,13 +285,22 @@ class _IllustPageState extends State<IllustPage> {
 
     switch (shortcuts.indexOf(key.keyId)) {
       case 0:
-        scrollController.animateTo(
-          scrollController.offset + kShortcutScrollOffset,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
+        if (scrollController.position.pixels >=
+            scrollController.position.maxScrollExtent) {
+          _bottomBarController.openOrClose();
+        } else {
+          scrollController.animateTo(
+            scrollController.offset + kShortcutScrollOffset,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
         break;
       case 1:
+        if (_bottomBarController.isOpen()) {
+          _bottomBarController.openOrClose();
+          break;
+        }
         scrollController.animateTo(
           scrollController.offset - kShortcutScrollOffset,
           duration: const Duration(milliseconds: 200),
@@ -361,23 +331,13 @@ class _IllustPageState extends State<IllustPage> {
   }
 
   Widget buildBody(double width, double height) {
-    return CustomScrollView(
-      controller: scrollController,
-      physics: const ClampingScrollPhysics(),
-      slivers: [
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              return buildImage(width, height, index);
-            },
-            childCount: widget.illust.images.length + 1,
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: SizedBox(height: _bottomBarHeight),
-        ),
-      ],
-    );
+    return ListView.builder(
+        controller: scrollController,
+        itemCount: widget.illust.images.length + 2,
+        padding: EdgeInsets.zero,
+        itemBuilder: (context, index) {
+          return buildImage(width, height, index);
+        });
   }
 
   void openImage(int index) {
@@ -404,6 +364,11 @@ class _IllustPageState extends State<IllustPage> {
     File? downloadFile;
     if (widget.illust.downloaded) {
       downloadFile = DownloadManager().getImage(widget.illust.id, index);
+    }
+    if (index == widget.illust.images.length) {
+      return SizedBox(
+        height: _kBottomBarHeight + context.padding.bottom,
+      );
     }
     var imageWidth = width;
     var imageHeight = widget.illust.height * width / widget.illust.width;
@@ -472,6 +437,14 @@ class _IllustPageState extends State<IllustPage> {
 }
 
 class _BottomBarController {
+  VoidCallback? _openOrClose;
+
+  VoidCallback get openOrClose => _openOrClose!;
+
+  bool Function()? _isOpen;
+
+  bool isOpen() => _isOpen!();
+
   VoidCallback? _favorite;
 
   VoidCallback get favorite => _favorite!;
@@ -486,27 +459,64 @@ class _BottomBarController {
 }
 
 class _BottomBar extends StatefulWidget {
-  const _BottomBar(this.illust,
-      {this.updateCallback, this.controller, this.onHeightChanged});
+  const _BottomBar(this.illust, this.height, this.width,
+      {this.updateCallback, this.controller});
 
   final void Function()? updateCallback;
 
   final Illust illust;
 
-  final _BottomBarController? controller;
+  final double height;
 
-  final void Function(double)? onHeightChanged;
+  final double width;
+
+  final _BottomBarController? controller;
 
   @override
   State<_BottomBar> createState() => _BottomBarState();
 }
 
-class _BottomBarState extends State<_BottomBar> {
+class _BottomBarState extends State<_BottomBar> with TickerProviderStateMixin {
+  double pageHeight = 0;
+
+  double widgetHeight = 48;
+
   final key = GlobalKey();
+
+  double _width = 0;
+
+  late VerticalDragGestureRecognizer _recognizer;
+
+  late final AnimationController animationController;
+
+  double get minValue => pageHeight - widgetHeight;
+  double get maxValue =>
+      pageHeight - _kBottomBarHeight - context.padding.bottom;
 
   @override
   void initState() {
+    _width = widget.width;
+    pageHeight = widget.height;
+    Future.delayed(const Duration(milliseconds: 200), () {
+      final box = key.currentContext?.findRenderObject() as RenderBox?;
+      widgetHeight = (box?.size.height) ?? 0;
+    });
+    _recognizer = VerticalDragGestureRecognizer()
+      ..onStart = _handlePointerDown
+      ..onUpdate = _handlePointerMove
+      ..onEnd = _handlePointerUp
+      ..onCancel = _handlePointerCancel;
+    animationController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 180), value: 1);
     if (widget.controller != null) {
+      widget.controller!._openOrClose = () {
+        if (animationController.value == 0) {
+          animationController.animateTo(1);
+        } else if (animationController.value == 1) {
+          animationController.animateTo(0);
+        }
+      };
+      widget.controller!._isOpen = () => animationController.value == 0;
       widget.controller!._favorite = favorite;
       widget.controller!._download = () {
         DownloadManager().addDownloadingTask(widget.illust);
@@ -518,43 +528,126 @@ class _BottomBarState extends State<_BottomBar> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final box = key.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null && widget.onHeightChanged != null) {
-        widget.onHeightChanged!(box.size.height);
-      }
-    });
+  void dispose() {
+    animationController.dispose();
+    _recognizer.dispose();
+    super.dispose();
+  }
 
-    return Card(
-      key: key,
-      margin: EdgeInsets.zero,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-      backgroundColor:
-          FluentTheme.of(context).micaBackgroundColor.toOpacity(0.96),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: SizedBox(
-        width: double.infinity,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            buildTop(),
-            buildStats(),
-            buildTags(),
-            buildMoreActions(),
-            SelectableText(
-              "${"Artwork ID".tl}: ${widget.illust.id}\n"
-              "${"Artist ID".tl}: ${widget.illust.author.id}\n"
-              "${widget.illust.createDate.toString().split('.').first}",
-              style: TextStyle(color: ColorScheme.of(context).outline),
-            ).paddingLeft(4),
-            SizedBox(
-              height: 8 + context.padding.bottom,
-            )
-          ],
-        ),
+  void _handlePointerDown(DragStartDetails details) {}
+  void _handlePointerMove(DragUpdateDetails details) {
+    var offset = details.primaryDelta ?? 0;
+    final minValue = pageHeight - widgetHeight;
+    final maxValue = pageHeight - _kBottomBarHeight - context.padding.bottom;
+    var top = animationController.value * (maxValue - minValue) + minValue;
+    top = (top + offset).clamp(minValue, maxValue);
+    animationController.value = (top - minValue) / (maxValue - minValue);
+  }
+
+  void _handlePointerUp(DragEndDetails details) {
+    var speed = details.primaryVelocity ?? 0;
+    const minShouldTransitionSpeed = 1000;
+    if (speed > minShouldTransitionSpeed) {
+      animationController.forward();
+    } else if (speed < 0 - minShouldTransitionSpeed) {
+      animationController.reverse();
+    } else {
+      _handlePointerCancel();
+    }
+  }
+
+  void _handlePointerCancel() {
+    if (animationController.value == 1 || animationController.value == 0) {
+      return;
+    }
+    if (animationController.value >= 0.5) {
+      animationController.forward();
+    } else {
+      animationController.reverse();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _BottomBar oldWidget) {
+    if (widget.height != pageHeight) {
+      setState(() {
+        pageHeight = widget.height;
+      });
+    }
+    _recognizer.dispose();
+    if (_width != widget.width) {
+      _width = widget.width;
+      Future.microtask(() {
+        final box = key.currentContext?.findRenderObject() as RenderBox?;
+        var oldHeight = widgetHeight;
+        widgetHeight = (box?.size.height) ?? 0;
+        if (oldHeight != widgetHeight) {
+          setState(() {});
+        }
+      });
+    }
+    super.didUpdateWidget(oldWidget);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: CurvedAnimation(
+        parent: animationController,
+        curve: Curves.ease,
+        reverseCurve: Curves.ease,
       ),
+      builder: (context, child) {
+        return Positioned(
+          top: minValue + (maxValue - minValue) * animationController.value,
+          left: 0,
+          right: 0,
+          child: Listener(
+            onPointerDown: (event) {
+              _recognizer.addPointer(event);
+            },
+            onPointerSignal: (event) {
+              if (event is PointerScrollEvent) {
+                var offset = (event).scrollDelta.dy;
+                if (offset < 0) {
+                  animationController.reverse();
+                } else {
+                  animationController.forward();
+                }
+              }
+            },
+            child: Card(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(8)),
+              backgroundColor:
+                  FluentTheme.of(context).micaBackgroundColor.toOpacity(0.96),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: SizedBox(
+                width: double.infinity,
+                key: key,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    buildTop(),
+                    buildStats(),
+                    buildTags(),
+                    buildMoreActions(),
+                    SelectableText(
+                      "${"Artwork ID".tl}: ${widget.illust.id}\n"
+                      "${"Artist ID".tl}: ${widget.illust.author.id}\n"
+                      "${widget.illust.createDate.toString().split('.').first}",
+                      style: TextStyle(color: ColorScheme.of(context).outline),
+                    ).paddingLeft(4),
+                    SizedBox(
+                      height: 8 + context.padding.bottom,
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -568,6 +661,18 @@ class _BottomBarState extends State<_BottomBar> {
             buildAuthor(),
             ...buildActions(constrains.maxWidth),
             const Spacer(),
+            if (animationController.value == 1)
+              IconButton(
+                  icon: const Icon(FluentIcons.up),
+                  onPressed: () {
+                    animationController.reverse();
+                  })
+            else
+              IconButton(
+                  icon: const Icon(FluentIcons.down),
+                  onPressed: () {
+                    animationController.forward();
+                  })
           ],
         );
       }),
