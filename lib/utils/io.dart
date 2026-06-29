@@ -36,11 +36,11 @@ extension FSExt on FileSystemEntity {
 
 extension DirectoryExt on Directory {
   bool havePermission() {
-    if(!existsSync()) return false;
-    if(App.isMacOS) {
-      return true;
-    }
     try {
+      if(!existsSync()) return false;
+      if(App.isMacOS) {
+        return true;
+      }
       listSync();
       return true;
     } catch (e) {
