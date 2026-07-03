@@ -1,4 +1,5 @@
 import "dart:async";
+import "dart:ui" show ImageFilter;
 
 import "package:fluent_ui/fluent_ui.dart";
 import "package:flutter/foundation.dart";
@@ -299,7 +300,7 @@ class NaviAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    final bar = SizedBox(
       height: _appBarHeight,
       child: StateBuilder<TitleBarController>(
         builder: (controller) {
@@ -374,6 +375,35 @@ class NaviAppBar extends StatelessWidget {
         },
       ),
     ).paddingTop(MediaQuery.of(context).padding.top);
+
+    if (App.isDesktop) {
+      return bar;
+    }
+
+    // In minimal/compact modes the pane overlay is full-height and its
+    // items scroll beneath the transparent title bar; frost the bar so
+    // the overlapping content is blurred out instead of mixing with it.
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: ColoredBox(
+                  // Not scaffoldBackgroundColor: that resolves to a nearly
+                  // transparent white layer color, not a solid surface.
+                  color: FluentTheme.of(context)
+                      .micaBackgroundColor
+                      .toOpacity(0.75),
+                ),
+              ),
+            ),
+          ),
+        ),
+        bar,
+      ],
+    );
   }
 }
 
