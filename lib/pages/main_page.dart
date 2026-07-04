@@ -138,6 +138,9 @@ class _MainPageState extends State<MainPage> with WindowListener {
         titleBar: titleBar,
         pane: NavigationPane(
           selected: index,
+          header: SizedBox(
+            height: MediaQuery.of(context).padding.top,
+          ),
           onChanged: (value) {
             setState(() {
               index = value;
@@ -149,12 +152,6 @@ class _MainPageState extends State<MainPage> with WindowListener {
             }
           },
           items: [
-            PaneItemWidgetAdapter(
-              child: SizedBox(
-                height: MediaQuery.of(context).padding.top,
-              ),
-              applyPadding: false,
-            ),
             UserPane(),
             PaneItem(
               icon: const _PaneIcon(MdIcons.search),
