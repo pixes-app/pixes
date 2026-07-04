@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:io';
 
 import 'package:fluent_ui/fluent_ui.dart' hide TitleBar;
@@ -22,9 +23,11 @@ import 'package:pixes/pages/image_page.dart';
 import 'package:pixes/pages/related_page.dart';
 import 'package:pixes/pages/search_page.dart';
 import 'package:pixes/pages/user_info_page.dart';
+import 'package:pixes/utils/app_links.dart';
 import 'package:pixes/utils/block.dart';
 import 'package:pixes/utils/translation.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 import '../components/illust_widget.dart';
 import '../components/md.dart';
@@ -354,15 +357,22 @@ class _IllustPageState extends State<IllustPage> {
   }
 
   Widget buildHeader() {
+    final hasDescription = widget.illust.caption
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .trim()
+        .isNotEmpty;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           widget.illust.title,
           style: const TextStyle(fontSize: 24),
         )
             .paddingVertical(8)
-            .paddingHorizontal(12)
+            .paddingHorizontal(8)
             .toAlign(Alignment.centerLeft),
+        if (hasDescription) buildDescription(),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.start,
@@ -414,6 +424,79 @@ class _IllustPageState extends State<IllustPage> {
         ).paddingHorizontal(10).paddingBottom(8),
       ],
     ).paddingAll(4);
+  }
+
+  Widget buildDescription() {
+    return SelectableText.rich(
+      TextSpan(children: buildDescriptionText().toList()),
+    ).paddingHorizontal(8).paddingBottom(8);
+  }
+
+  Iterable<TextSpan> buildDescriptionText() sync* {
+    var text = widget.illust.caption;
+    text = text.replaceAll("<br />", "\n");
+    text = text.replaceAll('\n\n', '\n');
+    var labels = Queue<String>();
+    var buffer = StringBuffer();
+    var style = const TextStyle();
+    String? link;
+    Map<String, String> attributes = {};
+    for (int i = 0; i < text.length; i++) {
+      if (text[i] == '<' && i + 1 < text.length && text[i + 1] != '/') {
+        var label =
+            text.substring(i + 1, text.indexOf('>', i)).split(' ').first;
+        labels.addLast(label);
+        for (var part
+            in text.substring(i + 1, text.indexOf('>', i)).split(' ')) {
+          var kv = part.split('=');
+          if (kv.length >= 2) {
+            attributes[kv[0]] =
+                kv.join('=').substring(kv[0].length + 2).replaceAll('"', '');
+          }
+        }
+        i = text.indexOf('>', i);
+      } else if (text[i] == '<' && i + 1 < text.length && text[i + 1] == '/') {
+        var label = text.substring(i + 2, text.indexOf('>', i));
+        if (labels.isNotEmpty && label == labels.last) {
+          switch (label) {
+            case "strong":
+              style = style.copyWith(fontWeight: FontWeight.bold);
+            case "a":
+              style = style.copyWith(color: ColorScheme.of(context).primary);
+              link = attributes["href"];
+          }
+          labels.removeLast();
+        }
+        i = text.indexOf('>', i);
+      } else {
+        buffer.write(text[i]);
+      }
+
+      if (i + 1 >= text.length ||
+          (labels.isEmpty &&
+              (text[i + 1] == '<' || (i != 0 && text[i - 1] == '>')))) {
+        var content = buffer.toString();
+        var url = link;
+        if (content.isNotEmpty) {
+          yield TextSpan(
+            text: content,
+            style: style,
+            recognizer: url != null
+                ? (TapGestureRecognizer()
+                  ..onTap = () {
+                    if (!handleLink(Uri.parse(url))) {
+                      launchUrlString(url);
+                    }
+                  })
+                : null,
+          );
+        }
+        buffer.clear();
+        link = null;
+        attributes.clear();
+        style = const TextStyle();
+      }
+    }
   }
 
   Widget buildImage(double width, double height, int index) {
