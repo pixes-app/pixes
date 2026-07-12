@@ -2,7 +2,8 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/gestures.dart';
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' show PredictiveBackPageTransitionsBuilder;
+import 'package:flutter/material.dart'
+    show PredictiveBackPageTransitionsBuilder;
 import 'package:pixes/foundation/app.dart';
 
 const double _kBackGestureWidth = 20.0;
@@ -144,26 +145,24 @@ mixin _AppRouteTransitionMixin<T> on PageRoute<T> {
     } else {
       if (App.isAndroid) {
         child = const PredictiveBackPageTransitionsBuilder().buildTransitions(
-          this, 
-          context, 
-          animation, 
-          secondaryAnimation, 
+          this,
+          context,
+          animation,
+          secondaryAnimation,
           child,
         );
       } else {
         child = DrillInPageTransition(
           animation: CurvedAnimation(
             parent: animation,
-            curve: FluentTheme
-                .of(context)
-                .animationCurve,
+            curve: FluentTheme.of(context).animationCurve,
           ),
           child: enableIOSGesture && App.isIOS
               ? IOSBackGestureDetector(
-              gestureWidth: _kBackGestureWidth,
-              enabledCallback: () => _isPopGestureEnabled<T>(this),
-              onStartPopGesture: () => _startPopGesture(this),
-              child: child)
+                  gestureWidth: _kBackGestureWidth,
+                  enabledCallback: () => _isPopGestureEnabled<T>(this),
+                  onStartPopGesture: () => _startPopGesture(this),
+                  child: child)
               : child,
         );
       }
@@ -343,7 +342,7 @@ class _IOSBackGestureDetectorState extends State<IOSBackGestureDetector> {
 
 const _kSideBarWidth = 420.0;
 
-class SideBarRoute<T> extends PopupRoute<T> {
+class SideBarRoute<T> extends PageRoute<T> {
   SideBarRoute(this.child);
 
   final Widget child;
@@ -358,8 +357,27 @@ class SideBarRoute<T> extends PopupRoute<T> {
   String? get barrierLabel => "side bar";
 
   @override
+  bool get maintainState => true;
+
+  @override
+  bool get opaque => false;
+
+  @override
   Widget buildPage(BuildContext context, Animation<double> animation,
       Animation<double> secondaryAnimation) {
+    if (App.isAndroid) {
+      return Container(
+        decoration: BoxDecoration(
+            color: FluentTheme.of(context).micaBackgroundColor.toOpacity(0.98),
+            borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4), bottomLeft: Radius.circular(4))),
+        constraints: BoxConstraints(
+            maxWidth: min(_kSideBarWidth, MediaQuery.of(context).size.width)),
+        width: double.infinity,
+        child: child,
+      );
+    }
+
     return Align(
       alignment: Alignment.centerRight,
       child: Stack(
@@ -391,7 +409,7 @@ class SideBarRoute<T> extends PopupRoute<T> {
   @override
   Duration get transitionDuration => const Duration(milliseconds: 200);
 
-  static bool _isPopGestureEnabled<T>(PopupRoute<T> route) {
+  static bool _isPopGestureEnabled<T>(PageRoute<T> route) {
     if (route.isFirst ||
         route.willHandlePopInternally ||
         route.popDisposition == RoutePopDisposition.doNotPop ||
@@ -409,6 +427,16 @@ class SideBarRoute<T> extends PopupRoute<T> {
   @override
   Widget buildTransitions(BuildContext context, Animation<double> animation,
       Animation<double> secondaryAnimation, Widget child) {
+    if (App.isAndroid) {
+      return const PredictiveBackPageTransitionsBuilder().buildTransitions(
+        this,
+        context,
+        animation,
+        secondaryAnimation,
+        child,
+      );
+    }
+
     var offset =
         Tween<Offset>(begin: const Offset(1, 0), end: const Offset(0, 0));
     return SlideTransition(
@@ -426,7 +454,7 @@ class SideBarRoute<T> extends PopupRoute<T> {
     );
   }
 
-  IOSBackGestureController _startPopGesture(PopupRoute<T> route) {
+  IOSBackGestureController _startPopGesture(PageRoute<T> route) {
     return IOSBackGestureController(route.controller!, route.navigator!);
   }
 }
