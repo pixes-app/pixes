@@ -17,6 +17,7 @@ class NovelRankingPage extends StatefulWidget {
 
 class _NovelRankingPageState extends State<NovelRankingPage> {
   String type = "day";
+  final pageKey = GlobalKey<_OneRankingPageState>();
 
   /// mode: day, day_male, day_female, week_rookie, week, week_ai
   static const types = {
@@ -37,7 +38,7 @@ class _NovelRankingPageState extends State<NovelRankingPage> {
           Expanded(
             child: _OneRankingPage(
               type,
-              key: Key(type),
+              key: pageKey,
             ),
           ),
         ],
@@ -48,6 +49,7 @@ class _NovelRankingPageState extends State<NovelRankingPage> {
   Widget buildHeader() {
     return TitleBar(
       title: "Ranking".tl,
+      onRefresh: () => pageKey.currentState?.refresh(),
       action: DropDownButton(
         title: Text(types[type]!.tl),
         items: types.entries
@@ -77,8 +79,23 @@ class _OneRankingPage extends StatefulWidget {
 class _OneRankingPageState
     extends MultiPageLoadingState<_OneRankingPage, Novel> {
   @override
+  void didUpdateWidget(covariant _OneRankingPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.type != widget.type) {
+      nextUrl = null;
+      reset();
+    }
+  }
+
+  @override
+  Future<void> refresh() {
+    nextUrl = null;
+    return super.refresh();
+  }
+
+  @override
   Widget buildContent(BuildContext context, final List<Novel> data) {
-    return GridViewWithFixedItemHeight(
+    return withRefresh(GridViewWithFixedItemHeight(
       itemCount: data.length,
       itemHeight: 164,
       minCrossAxisExtent: 400,
@@ -88,7 +105,7 @@ class _OneRankingPageState
         }
         return NovelWidget(data[index]);
       },
-    ).paddingHorizontal(8);
+    ).paddingHorizontal(8));
   }
 
   String? nextUrl;
@@ -98,7 +115,9 @@ class _OneRankingPageState
     if (nextUrl == "end") {
       return Res.error("No more data");
     }
-    var res = await Network().getNovelRanking(widget.type, null);
+    var res = nextUrl == null
+        ? await Network().getNovelRanking(widget.type, null)
+        : await Network().getNovelsWithNextUrl(nextUrl!);
     if (!res.error) {
       nextUrl = res.subData;
       nextUrl ??= "end";

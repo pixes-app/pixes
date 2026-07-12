@@ -105,9 +105,10 @@ class _TrendingTagsViewState
     extends LoadingState<_TrendingTagsView, List<TrendingTag>> {
   @override
   Widget buildContent(BuildContext context, List<TrendingTag> data) {
-    return MasonryGridView.builder(
+    return withRefresh(MasonryGridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 8.0) +
           EdgeInsets.only(bottom: context.padding.bottom),
+      physics: const AlwaysScrollableScrollPhysics(),
       gridDelegate: const SliverSimpleGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 240,
       ),
@@ -115,7 +116,7 @@ class _TrendingTagsViewState
       itemBuilder: (context, index) {
         return buildItem(data[index]);
       },
-    );
+    ));
   }
 
   Widget buildItem(TrendingTag tag) {
@@ -413,7 +414,8 @@ class _SearchResultPageState
   @override
   Widget buildContent(BuildContext context, final List<Illust> data) {
     checkIllusts(data);
-    return CustomScrollView(
+    return withRefresh(CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         buildSearchBar(),
         SliverMasonryGrid(
@@ -440,7 +442,7 @@ class _SearchResultPageState
           padding: EdgeInsets.only(bottom: context.padding.bottom),
         )
       ],
-    );
+    ));
   }
 
   Widget buildSearchBar() {
@@ -548,8 +550,15 @@ class SearchUserResultPage extends StatefulWidget {
 class _SearchUserResultPageState
     extends MultiPageLoadingState<SearchUserResultPage, UserPreview> {
   @override
+  Future<void> refresh() {
+    nextUrl = null;
+    return super.refresh();
+  }
+
+  @override
   Widget buildContent(BuildContext context, final List<UserPreview> data) {
-    return CustomScrollView(
+    return withRefresh(CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
           child: Text(
@@ -571,7 +580,7 @@ class _SearchUserResultPageState
           padding: EdgeInsets.only(bottom: context.padding.bottom),
         )
       ],
-    );
+    ));
   }
 
   String? nextUrl;
@@ -607,6 +616,12 @@ class _SearchNovelResultPageState
 
   late final controller = TextEditingController(text: widget.keyword);
 
+  @override
+  void reset() {
+    nextUrl = null;
+    super.reset();
+  }
+
   void search() {
     if (keyword != oldKeyword) {
       oldKeyword = keyword;
@@ -616,7 +631,8 @@ class _SearchNovelResultPageState
 
   @override
   Widget buildContent(BuildContext context, final List<Novel> data) {
-    return CustomScrollView(
+    return withRefresh(CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         buildSearchBar(),
         SliverGridViewWithFixedItemHeight(
@@ -636,7 +652,7 @@ class _SearchNovelResultPageState
           padding: EdgeInsets.only(bottom: context.padding.bottom),
         )
       ],
-    );
+    ));
   }
 
   Widget buildSearchBar() {

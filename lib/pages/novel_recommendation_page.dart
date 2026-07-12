@@ -21,9 +21,12 @@ class _NovelRecommendationPageState
   Widget buildContent(BuildContext context, List<Novel> data) {
     return Column(
       children: [
-        TitleBar(title: "Recommendation".tl),
+        TitleBar(
+          title: "Recommendation".tl,
+          onRefresh: refresh,
+        ),
         Expanded(
-          child: GridViewWithFixedItemHeight(
+          child: withRefresh(GridViewWithFixedItemHeight(
             itemCount: data.length,
             itemHeight: 164,
             minCrossAxisExtent: 400,
@@ -33,7 +36,7 @@ class _NovelRecommendationPageState
               }
               return NovelWidget(data[index]);
             },
-          ).paddingHorizontal(8),
+          ).paddingHorizontal(8)),
         )
       ],
     );

@@ -1,6 +1,19 @@
+import 'dart:async';
+
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' as material;
 import 'package:pixes/foundation/app.dart';
 import 'package:pixes/network/res.dart';
+
+Widget buildRefreshWrapper({
+  required Widget child,
+  required Future<void> Function() onRefresh,
+}) {
+  return material.RefreshIndicator(
+    onRefresh: onRefresh,
+    child: child,
+  );
+}
 
 abstract class LoadingState<T extends StatefulWidget, S extends Object> extends State<T>{
   bool isLoading = false;
@@ -21,12 +34,40 @@ abstract class LoadingState<T extends StatefulWidget, S extends Object> extends 
     );
   }
 
-  void retry() {
+  Future<void> retry() async {
     setState(() {
       isLoading = true;
       error = null;
     });
+    final value = await loadData();
+    if (!mounted) return;
+    if(value.success) {
+      setState(() {
+        isLoading = false;
+        data = value.data;
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+        error = value.errorMessage!;
+      });
+    }
+  }
+
+  Future<void> refresh() {
+    return retry();
+  }
+
+  Widget withRefresh(Widget child) {
+    return buildRefreshWrapper(
+      onRefresh: refresh,
+      child: child,
+    );
+  }
+
+  void _loadInitialData() {
     loadData().then((value) {
+      if (!mounted) return;
       if(value.success) {
         setState(() {
           isLoading = false;
@@ -61,19 +102,7 @@ abstract class LoadingState<T extends StatefulWidget, S extends Object> extends 
   @mustCallSuper
   void initState() {
     isLoading = true;
-    loadData().then((value) {
-      if(value.success) {
-        setState(() {
-          isLoading = false;
-          data = value.data;
-        });
-      } else {
-        setState(() {
-          isLoading = false;
-          error = value.errorMessage!;
-        });
-      }
-    });
+    _loadInitialData();
     super.initState();
   }
 
@@ -103,6 +132,8 @@ abstract class MultiPageLoadingState<T extends StatefulWidget, S extends Object>
   String? _error;
 
   int _page = 1;
+
+  Completer<void>? _refreshCompleter;
 
   Future<Res<List<S>>> loadData(int page);
 
@@ -150,6 +181,20 @@ abstract class MultiPageLoadingState<T extends StatefulWidget, S extends Object>
     firstLoad();
   }
 
+  Future<void> refresh() {
+    final completer = Completer<void>();
+    _refreshCompleter = completer;
+    reset();
+    return completer.future;
+  }
+
+  Widget withRefresh(Widget child) {
+    return buildRefreshWrapper(
+      onRefresh: refresh,
+      child: child,
+    );
+  }
+
   void firstLoad() {
     loadData(_page).then((value) {
       if (!mounted) return;
@@ -165,6 +210,8 @@ abstract class MultiPageLoadingState<T extends StatefulWidget, S extends Object>
           _error = value.errorMessage!;
         });
       }
+      _refreshCompleter?.complete();
+      _refreshCompleter = null;
     });
   }
 

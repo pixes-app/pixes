@@ -21,6 +21,7 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> {
   int page = 0;
+  final networkPageKey = GlobalKey<_NetworkHistoryPageState>();
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +29,7 @@ class _HistoryPageState extends State<HistoryPage> {
       children: [
         TitleBar(
           title: "History".tl,
+          onRefresh: page == 1 ? () => networkPageKey.currentState?.refresh() : null,
           action: SegmentedButton<int>(
             options: [
               SegmentedButtonOption(
@@ -48,8 +50,11 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
         ),
         Expanded(
-          child:
-              page == 0 ? const LocalHistoryPage() : const NetworkHistoryPage(),
+          child: page == 0
+              ? const LocalHistoryPage()
+              : NetworkHistoryPage(
+                  key: networkPageKey,
+                ),
         ),
       ],
     );
@@ -68,12 +73,19 @@ class _LocalHistoryPageState extends State<LocalHistoryPage> {
 
   var data = <IllustHistory>[];
 
+  Future<void> refresh() async {
+    setState(() {
+      page = 1;
+      data = [];
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constrains) {
-      return MasonryGridView.builder(
+    return withRefresh(MasonryGridView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 8) +
             EdgeInsets.only(bottom: context.padding.bottom),
+        physics: const AlwaysScrollableScrollPhysics(),
         gridDelegate: const SliverSimpleGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 240,
         ),
@@ -85,8 +97,14 @@ class _LocalHistoryPageState extends State<LocalHistoryPage> {
           }
           return IllustHistoryWidget(data[index]);
         },
-      );
-    });
+      ));
+  }
+
+  Widget withRefresh(Widget child) {
+    return buildRefreshWrapper(
+      onRefresh: refresh,
+      child: child,
+    );
   }
 }
 
@@ -101,10 +119,10 @@ class _NetworkHistoryPageState
     extends MultiPageLoadingState<NetworkHistoryPage, Illust> {
   @override
   Widget buildContent(BuildContext context, final List<Illust> data) {
-    return LayoutBuilder(builder: (context, constrains) {
-      return MasonryGridView.builder(
+    return withRefresh(MasonryGridView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 8) +
             EdgeInsets.only(bottom: context.padding.bottom),
+        physics: const AlwaysScrollableScrollPhysics(),
         gridDelegate: const SliverSimpleGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 240,
         ),
@@ -117,11 +135,10 @@ class _NetworkHistoryPageState
             context.to(() => IllustGalleryPage(
                   illusts: data,
                   initialPage: index,
-                ));
+            ));
           });
         },
-      );
-    });
+      ));
   }
 
   @override

@@ -19,10 +19,19 @@ class RelatedIllustsPage extends StatefulWidget {
 class _RelatedIllustsPageState
     extends MultiPageLoadingState<RelatedIllustsPage, Illust> {
   @override
+  Future<void> refresh() {
+    nextUrl = null;
+    return super.refresh();
+  }
+
+  @override
   Widget? buildFrame(BuildContext context, Widget child) {
     return Column(
       children: [
-        TitleBar(title: "Related artworks".tl),
+        TitleBar(
+          title: "Related artworks".tl,
+          onRefresh: refresh,
+        ),
         Expanded(
           child: child,
         )
@@ -32,10 +41,10 @@ class _RelatedIllustsPageState
 
   @override
   Widget buildContent(BuildContext context, final List<Illust> data) {
-    return LayoutBuilder(builder: (context, constrains) {
-      return MasonryGridView.builder(
+    return withRefresh(MasonryGridView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 8) +
             EdgeInsets.only(bottom: context.padding.bottom),
+        physics: const AlwaysScrollableScrollPhysics(),
         gridDelegate: const SliverSimpleGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 240,
         ),
@@ -46,8 +55,7 @@ class _RelatedIllustsPageState
           }
           return IllustWidget(data[index]);
         },
-      );
-    });
+      ));
   }
 
   String? nextUrl;

@@ -26,6 +26,7 @@ class _NovelBookmarksPageState
       children: [
         TitleBar(
           title: "Bookmarks".tl,
+          onRefresh: refresh,
           action: SegmentedButton(
             options: [
               SegmentedButtonOption("public", "Public".tl),
@@ -54,7 +55,7 @@ class _NovelBookmarksPageState
     return Column(
       children: [
         Expanded(
-          child: GridViewWithFixedItemHeight(
+          child: withRefresh(GridViewWithFixedItemHeight(
             itemCount: data.length,
             itemHeight: 164,
             minCrossAxisExtent: 400,
@@ -64,13 +65,19 @@ class _NovelBookmarksPageState
               }
               return NovelWidget(data[index]);
             },
-          ).paddingHorizontal(8),
+          ).paddingHorizontal(8)),
         )
       ],
     );
   }
 
   String? nextUrl;
+
+  @override
+  Future<void> refresh() {
+    nextUrl = null;
+    return super.refresh();
+  }
 
   @override
   Future<Res<List<Novel>>> loadData(int page) async {

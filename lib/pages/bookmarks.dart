@@ -20,6 +20,7 @@ class BookMarkedArtworkPage extends StatefulWidget {
 
 class _BookMarkedArtworkPageState extends State<BookMarkedArtworkPage> {
   String restrict = "public";
+  final pageKey = GlobalKey<_OneBookmarkedPageState>();
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +30,7 @@ class _BookMarkedArtworkPageState extends State<BookMarkedArtworkPage> {
         Expanded(
           child: _OneBookmarkedPage(
             restrict,
-            key: Key(restrict),
+            key: pageKey,
           ),
         )
       ],
@@ -39,6 +40,7 @@ class _BookMarkedArtworkPageState extends State<BookMarkedArtworkPage> {
   Widget buildTab() {
     return TitleBar(
       title: "Bookmarks".tl,
+      onRefresh: () => pageKey.currentState?.refresh(),
       action: Row(
         children: [
           BatchDownloadButton(
@@ -78,11 +80,26 @@ class _OneBookmarkedPage extends StatefulWidget {
 class _OneBookmarkedPageState
     extends MultiPageLoadingState<_OneBookmarkedPage, Illust> {
   @override
+  void didUpdateWidget(covariant _OneBookmarkedPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.restrict != widget.restrict) {
+      nextUrl = null;
+      reset();
+    }
+  }
+
+  @override
+  Future<void> refresh() {
+    nextUrl = null;
+    return super.refresh();
+  }
+
+  @override
   Widget buildContent(BuildContext context, final List<Illust> data) {
-    return LayoutBuilder(builder: (context, constrains) {
-      return MasonryGridView.builder(
+    return withRefresh(MasonryGridView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 8) +
             EdgeInsets.only(bottom: context.padding.bottom),
+        physics: const AlwaysScrollableScrollPhysics(),
         gridDelegate: const SliverSimpleGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 240,
         ),
@@ -99,8 +116,7 @@ class _OneBookmarkedPageState
             },
           );
         },
-      );
-    });
+      ));
   }
 
   String? nextUrl;

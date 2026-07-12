@@ -25,6 +25,7 @@ class _FollowingNovelsPageState
       children: [
         TitleBar(
           title: "Following".tl,
+          onRefresh: refresh,
           action: SegmentedButton(
             options: [
               SegmentedButtonOption("public", "Public".tl),
@@ -53,7 +54,7 @@ class _FollowingNovelsPageState
     return Column(
       children: [
         Expanded(
-          child: GridViewWithFixedItemHeight(
+          child: withRefresh(GridViewWithFixedItemHeight(
             itemCount: data.length,
             itemHeight: 164,
             minCrossAxisExtent: 400,
@@ -63,13 +64,19 @@ class _FollowingNovelsPageState
               }
               return NovelWidget(data[index]);
             },
-          ).paddingHorizontal(8),
+          ).paddingHorizontal(8)),
         )
       ],
     );
   }
 
   String? nextUrl;
+
+  @override
+  Future<void> refresh() {
+    nextUrl = null;
+    return super.refresh();
+  }
 
   @override
   Future<Res<List<Novel>>> loadData(int page) async {

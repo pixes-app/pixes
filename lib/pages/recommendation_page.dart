@@ -22,6 +22,8 @@ class RecommendationPage extends StatefulWidget {
 
 class _RecommendationPageState extends State<RecommendationPage> {
   var type = 0;
+  final artworkPageKey = GlobalKey<_RecommendationArtworksPageState>();
+  final userPageKey = GlobalKey<_RecommendationUsersPageState>();
 
   @override
   Widget build(BuildContext context) {
@@ -32,9 +34,11 @@ class _RecommendationPageState extends State<RecommendationPage> {
           child: type != 2
               ? _RecommendationArtworksPage(
                   type,
-                  key: Key(type.toString()),
+                  key: artworkPageKey,
                 )
-              : const _RecommendationUsersPage(),
+              : _RecommendationUsersPage(
+                  key: userPageKey,
+                ),
         )
       ],
     );
@@ -43,6 +47,13 @@ class _RecommendationPageState extends State<RecommendationPage> {
   Widget buildTab() {
     return TitleBar(
       title: "Explore".tl,
+      onRefresh: () {
+        if (type != 2) {
+          artworkPageKey.currentState?.refresh();
+        } else {
+          userPageKey.currentState?.refresh();
+        }
+      },
       action: SegmentedButton<int>(
         options: [
           SegmentedButtonOption(0, "Illustrations".tl),
@@ -75,12 +86,20 @@ class _RecommendationArtworksPage extends StatefulWidget {
 class _RecommendationArtworksPageState
     extends MultiPageLoadingState<_RecommendationArtworksPage, Illust> {
   @override
+  void didUpdateWidget(covariant _RecommendationArtworksPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.type != widget.type) {
+      reset();
+    }
+  }
+
+  @override
   Widget buildContent(BuildContext context, final List<Illust> data) {
     checkIllusts(data);
-    return LayoutBuilder(builder: (context, constrains) {
-      return MasonryGridView.builder(
+    return withRefresh(MasonryGridView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 8) +
             EdgeInsets.only(bottom: context.padding.bottom),
+        physics: const AlwaysScrollableScrollPhysics(),
         gridDelegate: const SliverSimpleGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 240,
         ),
@@ -100,8 +119,7 @@ class _RecommendationArtworksPageState
             },
           );
         },
-      );
-    });
+      ));
   }
 
   @override
@@ -113,7 +131,7 @@ class _RecommendationArtworksPageState
 }
 
 class _RecommendationUsersPage extends StatefulWidget {
-  const _RecommendationUsersPage();
+  const _RecommendationUsersPage({super.key});
 
   @override
   State<_RecommendationUsersPage> createState() =>
@@ -124,7 +142,8 @@ class _RecommendationUsersPageState
     extends MultiPageLoadingState<_RecommendationUsersPage, UserPreview> {
   @override
   Widget buildContent(BuildContext context, List<UserPreview> data) {
-    return CustomScrollView(
+    return withRefresh(CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverGridViewWithFixedItemHeight(
           delegate: SliverChildBuilderDelegate((context, index) {
@@ -137,7 +156,7 @@ class _RecommendationUsersPageState
           itemHeight: 136,
         ).sliverPaddingHorizontal(8)
       ],
-    );
+    ));
   }
 
   @override

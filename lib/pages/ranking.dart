@@ -20,6 +20,7 @@ class RankingPage extends StatefulWidget {
 
 class _RankingPageState extends State<RankingPage> {
   String type = "day";
+  final pageKey = GlobalKey<_OneRankingPageState>();
 
   /// mode: day, week, month, day_male, day_female, week_original, week_rookie, day_manga, week_manga, month_manga, day_r18_manga, day_r18
   static const types = {
@@ -46,7 +47,7 @@ class _RankingPageState extends State<RankingPage> {
           Expanded(
             child: _OneRankingPage(
               type,
-              key: Key(type),
+              key: pageKey,
             ),
           ),
         ],
@@ -57,6 +58,7 @@ class _RankingPageState extends State<RankingPage> {
   Widget buildHeader() {
     return TitleBar(
       title: "Ranking".tl,
+      onRefresh: () => pageKey.currentState?.refresh(),
       action: Row(
         children: [
           BatchDownloadButton(request: () => Network().getRanking(type)),
@@ -94,12 +96,27 @@ class _OneRankingPage extends StatefulWidget {
 class _OneRankingPageState
     extends MultiPageLoadingState<_OneRankingPage, Illust> {
   @override
+  void didUpdateWidget(covariant _OneRankingPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.type != widget.type) {
+      nextUrl = null;
+      reset();
+    }
+  }
+
+  @override
+  Future<void> refresh() {
+    nextUrl = null;
+    return super.refresh();
+  }
+
+  @override
   Widget buildContent(BuildContext context, final List<Illust> data) {
     checkIllusts(data);
-    return LayoutBuilder(builder: (context, constrains) {
-      return MasonryGridView.builder(
+    return withRefresh(MasonryGridView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 8) +
             EdgeInsets.only(bottom: context.padding.bottom),
+        physics: const AlwaysScrollableScrollPhysics(),
         gridDelegate: const SliverSimpleGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 240,
         ),
@@ -113,8 +130,7 @@ class _OneRankingPageState
                 illusts: data, initialPage: index, nextUrl: nextUrl));
           });
         },
-      );
-    });
+      ));
   }
 
   String? nextUrl;
