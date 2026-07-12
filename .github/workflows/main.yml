@@ -121,12 +121,17 @@ jobs:
           CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_KEYSTORE_PASSWORD }}
         run: |
           dart run msix:create -p ${{ env.CERTIFICATE_PASSWORD }} --install-certificate false
+      - name: Stage Windows artifacts
+        shell: pwsh
+        run: |
+          $artifactDir = "build/windows/artifacts"
+          New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
+          Copy-Item "build/windows/x64/runner/Release/pixes.msix" -Destination "$artifactDir/pixes.msix" -Force
+          Copy-Item "build/windows/pixes-*-windows.zip" -Destination $artifactDir -Force
       - uses: actions/upload-artifact@v4
         with:
           name: windows_build
-          path: |
-            build/windows/x64/runner/Release/pixes.msix
-            build/windows/pixes-*-windows.zip
+          path: build/windows/artifacts
   Build_Linux:
     if: github.event_name == 'release' || github.event.inputs.build_linux == 'true'
     runs-on: ubuntu-latest
