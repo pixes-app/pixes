@@ -257,6 +257,19 @@ class _SearchSettingsState extends State<SearchSettings> {
                         }))
                     .toList(),
               )),
+          buildItem(
+              title: "Include AI-generated works".tl,
+              child: ToggleSwitch(
+                checked: appdata.searchOptions.includeAiGeneratedWorks,
+                onChanged: (value) {
+                  if (appdata.searchOptions.includeAiGeneratedWorks != value) {
+                    setState(() {
+                      appdata.searchOptions.includeAiGeneratedWorks = value;
+                    });
+                    widget.onChanged?.call();
+                  }
+                },
+              )),
           if (!widget.isNovel)
             Card(
                 padding: EdgeInsets.zero,

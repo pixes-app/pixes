@@ -16,13 +16,14 @@ extension NovelExt on Network {
   }
 
   Future<Res<List<Novel>>> searchNovels(String keyword, SearchOptions options) {
+    final aiType = options.includeAiGeneratedWorks ? 1 : 0;
     var url = "/v1/search/novel?"
         "include_translated_tag_results=true&"
         "merge_plain_keyword_results=true&"
         "word=${Uri.encodeComponent(keyword)}&"
         "sort=${options.sort.toParam()}&"
         "search_target=${options.matchType.toParam()}&"
-        "search_ai_type=0";
+        "search_ai_type=$aiType";
     return getNovelsWithNextUrl(url);
   }
 

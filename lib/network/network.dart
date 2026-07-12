@@ -342,12 +342,13 @@ class Network {
     final encodedKeyword = Uri.encodeComponent(keyword +
         options.favoriteNumber.toParam() +
         options.ageLimit.toParam());
+    final aiType = options.includeAiGeneratedWorks ? 0 : 1;
     if (options.sort == SearchSort.popular && !options.sort.isPremium) {
       path =
-          "/v1/search/popular-preview/illust?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&word=$encodedKeyword&search_target=${options.matchType.toParam()}";
+          "/v1/search/popular-preview/illust?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&word=$encodedKeyword&search_target=${options.matchType.toParam()}&search_ai_type=$aiType";
     } else {
       path =
-          "/v1/search/illust?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&word=$encodedKeyword&sort=${options.sort.toParam()}&search_target=${options.matchType.toParam()}";
+          "/v1/search/illust?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&word=$encodedKeyword&sort=${options.sort.toParam()}&search_target=${options.matchType.toParam()}&search_ai_type=$aiType";
     }
 
     var res = await apiGet(path);

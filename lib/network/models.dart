@@ -360,6 +360,7 @@ class SearchOptions {
   DateTime? startTime;
   DateTime? endTime;
   AgeLimit ageLimit = AgeLimit.unlimited;
+  bool includeAiGeneratedWorks = false;
 }
 
 /*
