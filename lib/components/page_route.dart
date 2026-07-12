@@ -363,17 +363,18 @@ class SideBarRoute<T> extends PageRoute<T> {
   bool get opaque => false;
 
   @override
+  bool canTransitionTo(TransitionRoute<dynamic> nextRoute) {
+    // Don't perform outgoing animation if the next route is a fullscreen dialog.
+    return nextRoute is PageRoute && !nextRoute.fullscreenDialog;
+  }
+
+  @override
   Widget buildPage(BuildContext context, Animation<double> animation,
       Animation<double> secondaryAnimation) {
     if (App.isAndroid) {
       return Container(
         decoration: BoxDecoration(
-            color: FluentTheme.of(context).micaBackgroundColor.toOpacity(0.98),
-            borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(4), bottomLeft: Radius.circular(4))),
-        constraints: BoxConstraints(
-            maxWidth: min(_kSideBarWidth, MediaQuery.of(context).size.width)),
-        width: double.infinity,
+            color: FluentTheme.of(context).micaBackgroundColor.toOpacity(0.98)),
         child: child,
       );
     }
