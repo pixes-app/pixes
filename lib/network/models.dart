@@ -246,7 +246,8 @@ class TrendingTag {
 enum KeywordMatchType {
   tagsPartialMatches("Tags partial match"),
   tagsExactMatch("Tags exact match"),
-  titleOrDescriptionSearch("Title or description search");
+  mainText("Main Text"),
+  keyword("Labels, titles, and descriptions");
 
   final String text;
 
@@ -255,11 +256,18 @@ enum KeywordMatchType {
   @override
   toString() => text;
 
-  String toParam() => switch (this) {
-        KeywordMatchType.tagsPartialMatches => "partial_match_for_tags",
-        KeywordMatchType.tagsExactMatch => "exact_match_for_tags",
-        KeywordMatchType.titleOrDescriptionSearch => "title_and_caption"
-      };
+  String toParam([String? searchType]) {
+    if (searchType != "novel" && this == KeywordMatchType.mainText) {
+      return "keyword"; // mainText search for illustration is not supported
+    }
+
+    return switch (this) {
+      KeywordMatchType.tagsPartialMatches => "partial_match_for_tags",
+      KeywordMatchType.tagsExactMatch => "exact_match_for_tags",
+      KeywordMatchType.mainText => "text",
+      KeywordMatchType.keyword => "keyword",
+    };
+  }
 }
 
 enum FavoriteNumber {
