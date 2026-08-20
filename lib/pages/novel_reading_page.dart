@@ -1,4 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart' hide TitleBar;
+import 'package:flutter/scheduler.dart';
 import 'package:pixes/appdata.dart';
 import 'package:pixes/components/animated_image.dart';
 import 'package:pixes/components/loading.dart';
@@ -15,6 +16,19 @@ import 'package:pixes/pages/main_page.dart';
 import 'package:pixes/utils/ext.dart';
 import 'package:pixes/utils/translation.dart';
 
+const double _minAutoScrollSpeed = 10.0;
+const double _maxAutoScrollSpeed = 100.0;
+const double _defaultAutoScrollSpeed = 40.0;
+
+double _getAutoScrollSpeed() {
+  final value = appdata.settings["readingAutoScrollSpeed"];
+  if (value is! num) return _defaultAutoScrollSpeed;
+  return value
+      .toDouble()
+      .clamp(_minAutoScrollSpeed, _maxAutoScrollSpeed)
+      .toDouble();
+}
+
 class NovelReadingPage extends StatefulWidget {
   const NovelReadingPage(this.novel, {super.key});
 
@@ -24,8 +38,19 @@ class NovelReadingPage extends StatefulWidget {
   State<NovelReadingPage> createState() => _NovelReadingPageState();
 }
 
-class _NovelReadingPageState extends LoadingState<NovelReadingPage, String> {
-  TitleBarAction? action;
+class _NovelReadingPageState extends LoadingState<NovelReadingPage, String>
+    with SingleTickerProviderStateMixin {
+  TitleBarAction? settingsAction;
+
+  TitleBarAction? autoScrollAction;
+
+  late final ScrollController _scrollController;
+
+  late final Ticker _autoScrollTicker;
+
+  Duration? _lastAutoScrollTick;
+
+  bool _isAutoScrolling = false;
 
   bool isShowingSettings = false;
 
@@ -44,7 +69,13 @@ class _NovelReadingPageState extends LoadingState<NovelReadingPage, String> {
   @override
   void initState() {
     novel = widget.novel;
-    action = TitleBarAction(MdIcons.tune, "Settings".tl, () {
+    super.initState();
+    _scrollController = ScrollController();
+    _autoScrollTicker = createTicker(_handleAutoScrollTick);
+    autoScrollAction = _createAutoScrollAction();
+    settingsAction = TitleBarAction(MdIcons.tune, "Settings".tl, () {
+      if (!mounted || isLoading || data == null) return;
+      _stopAutoScroll();
       if (!isShowingSettings) {
         _NovelReadingSettings.show(
           context,
@@ -76,9 +107,12 @@ class _NovelReadingPageState extends LoadingState<NovelReadingPage, String> {
       }
     });
     Future.delayed(const Duration(milliseconds: 200), () {
-      StateController.find<TitleBarController>().addAction(action!);
+      if (!mounted) return;
+      final controller = StateController.findOrNull<TitleBarController>();
+      if (controller == null) return;
+      controller.addAction(autoScrollAction!);
+      controller.addAction(settingsAction!);
     });
-    super.initState();
     if (novel.seriesId != null) {
       loadSeries();
     }
@@ -86,10 +120,107 @@ class _NovelReadingPageState extends LoadingState<NovelReadingPage, String> {
 
   @override
   void dispose() {
+    _stopAutoScroll(updateAction: false);
+    _autoScrollTicker.dispose();
+    _scrollController.dispose();
+    final currentAutoScrollAction = autoScrollAction;
+    final currentSettingsAction = settingsAction;
     Future.delayed(const Duration(milliseconds: 200), () {
-      StateController.find<TitleBarController>().removeAction(action!);
+      final controller = StateController.findOrNull<TitleBarController>();
+      if (controller == null) return;
+      if (currentAutoScrollAction != null) {
+        controller.removeAction(currentAutoScrollAction);
+      }
+      if (currentSettingsAction != null) {
+        controller.removeAction(currentSettingsAction);
+      }
     });
     super.dispose();
+  }
+
+  TitleBarAction _createAutoScrollAction() {
+    return TitleBarAction(
+      _isAutoScrolling ? MdIcons.pause : MdIcons.play_arrow,
+      _isAutoScrolling ? "Pause".tl : "Auto Scroll".tl,
+      _toggleAutoScroll,
+      compactOnMobile: true,
+    );
+  }
+
+  void _refreshAutoScrollAction() {
+    final current = autoScrollAction;
+    final replacement = _createAutoScrollAction();
+    autoScrollAction = replacement;
+    if (current == null) return;
+    StateController.findOrNull<TitleBarController>()
+        ?.replaceAction(current, replacement);
+  }
+
+  void _toggleAutoScroll() {
+    if (!mounted) return;
+    if (_isAutoScrolling) {
+      _stopAutoScroll();
+      return;
+    }
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+    _startAutoScroll();
+  }
+
+  void _startAutoScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions ||
+        position.pixels >= position.maxScrollExtent - 0.5) {
+      return;
+    }
+    _isAutoScrolling = true;
+    _lastAutoScrollTick = null;
+    _autoScrollTicker.start();
+    _refreshAutoScrollAction();
+  }
+
+  void _stopAutoScroll({bool updateAction = true}) {
+    if (!_isAutoScrolling) return;
+    _isAutoScrolling = false;
+    _lastAutoScrollTick = null;
+    _autoScrollTicker.stop();
+    if (updateAction) {
+      _refreshAutoScrollAction();
+    }
+  }
+
+  void _handleAutoScrollTick(Duration elapsed) {
+    if (!_isAutoScrolling) return;
+    if (!_scrollController.hasClients) {
+      _stopAutoScroll();
+      return;
+    }
+
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions) {
+      _lastAutoScrollTick = elapsed;
+      return;
+    }
+    if (position.pixels >= position.maxScrollExtent - 0.5) {
+      _stopAutoScroll();
+      return;
+    }
+
+    final previousTick = _lastAutoScrollTick;
+    _lastAutoScrollTick = elapsed;
+    if (previousTick == null) return;
+
+    final elapsedSeconds = ((elapsed - previousTick).inMicroseconds / 1000000)
+        .clamp(0.0, 0.1)
+        .toDouble();
+    final nextOffset =
+        (position.pixels + _getAutoScrollSpeed() * elapsedSeconds)
+            .clamp(position.minScrollExtent, position.maxScrollExtent)
+            .toDouble();
+    position.jumpTo(nextOffset);
+    if (nextOffset >= position.maxScrollExtent - 0.5) {
+      _stopAutoScroll();
+    }
   }
 
   /// Loads the full ordered list of episodes for the current series.
@@ -122,6 +253,10 @@ class _NovelReadingPageState extends LoadingState<NovelReadingPage, String> {
   /// Switches the reader to [target] and reloads its content.
   void goToNovel(Novel target) {
     if (target.id == novel.id || isLoading) return;
+    _stopAutoScroll();
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+    }
     setState(() {
       novel = target;
       translatedContent = null;
@@ -145,6 +280,7 @@ class _NovelReadingPageState extends LoadingState<NovelReadingPage, String> {
   void showChapterList() {
     final list = seriesNovels;
     if (list == null) return;
+    _stopAutoScroll();
     Navigator.of(context).push(
       SideBarRoute(_NovelChapterList(
         novels: list,
@@ -160,19 +296,24 @@ class _NovelReadingPageState extends LoadingState<NovelReadingPage, String> {
     content.add(buildChapterNav(context));
     return ScaffoldPage(
       padding: EdgeInsets.zero,
-      content: SelectionArea(
+      content: Listener(
+        onPointerDown: (_) => _stopAutoScroll(),
+        onPointerSignal: (_) => _stopAutoScroll(),
+        child: SelectionArea(
           child: DefaultTextStyle.merge(
-        style: const TextStyle(fontSize: 16.0, height: 1.6),
-        child: ListView.builder(
-          // A fresh key per chapter resets the scroll back to the top.
-          key: ValueKey(novel.id),
-          padding: const EdgeInsets.all(16.0),
-          itemBuilder: (context, index) {
-            return content[index];
-          },
-          itemCount: content.length,
+            style: const TextStyle(fontSize: 16.0, height: 1.6),
+            child: ListView.builder(
+              key: ValueKey(novel.id),
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16.0),
+              itemBuilder: (context, index) {
+                return content[index];
+              },
+              itemCount: content.length,
+            ),
+          ),
         ),
-      )),
+      ),
     );
   }
 
@@ -365,7 +506,8 @@ class _NovelChapterList extends StatelessWidget {
               return ListTile(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 tileColor: isCurrent
-                    ?  WidgetStateColor.resolveWith((states) => ColorScheme.of(context).primaryContainer.toOpacity(0.6))
+                    ? WidgetStateColor.resolveWith((states) =>
+                        ColorScheme.of(context).primaryContainer.toOpacity(0.6))
                     : null,
                 onPressed: () {
                   Navigator.of(context).pop();
@@ -512,6 +654,27 @@ class __NovelReadingSettingsState extends State<_NovelReadingSettings> {
               ),
               trailing:
                   Text(appdata.settings["readingParagraphSpacing"].toString()),
+            ),
+          ).paddingHorizontal(8).paddingBottom(8),
+          Card(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              title: Text("Auto Scroll Speed".tl),
+              subtitle: Slider(
+                key: const ValueKey("novel-auto-scroll-speed"),
+                value: _getAutoScrollSpeed(),
+                onChanged: (value) {
+                  setState(() {
+                    appdata.settings["readingAutoScrollSpeed"] = value;
+                  });
+                },
+                onChangeEnd: (_) => appdata.writeSettings(),
+                min: _minAutoScrollSpeed,
+                max: _maxAutoScrollSpeed,
+                divisions: 9,
+                label: "${(_getAutoScrollSpeed() / 10).round()}",
+              ),
+              trailing: Text("${(_getAutoScrollSpeed() / 10).round()} / 10"),
             ),
           ).paddingHorizontal(8).paddingBottom(8),
           // 深色模式

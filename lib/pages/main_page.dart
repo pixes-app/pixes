@@ -36,8 +36,14 @@ class TitleBarAction {
   final IconData icon;
   final String title;
   final void Function() onPressed;
+  final bool compactOnMobile;
 
-  TitleBarAction(this.icon, this.title, this.onPressed);
+  TitleBarAction(
+    this.icon,
+    this.title,
+    this.onPressed, {
+    this.compactOnMobile = false,
+  });
 }
 
 class TitleBarController extends StateController {
@@ -54,6 +60,13 @@ class TitleBarController extends StateController {
 
   void removeAction(TitleBarAction action) {
     actions.remove(action);
+    update();
+  }
+
+  void replaceAction(TitleBarAction action, TitleBarAction replacement) {
+    final index = actions.indexOf(action);
+    if (index == -1) return;
+    actions[index] = replacement;
     update();
   }
 }
@@ -334,19 +347,28 @@ class NaviAppBar extends StatelessWidget {
                       ),
                     ),
                   for (var action in controller.actions)
-                    Button(
-                      onPressed: action.onPressed,
-                      child: Row(
-                        children: [
-                          Icon(
-                            action.icon,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(action.title),
-                        ],
-                      ),
-                    ).paddingTop(4).paddingLeft(4),
+                    if (App.isMobile && action.compactOnMobile)
+                      Tooltip(
+                        message: action.title,
+                        child: IconButton(
+                          icon: Icon(action.icon, size: 18),
+                          onPressed: action.onPressed,
+                        ),
+                      ).paddingTop(4).paddingLeft(4)
+                    else
+                      Button(
+                        onPressed: action.onPressed,
+                        child: Row(
+                          children: [
+                            Icon(
+                              action.icon,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(action.title),
+                          ],
+                        ),
+                      ).paddingTop(4).paddingLeft(4),
                   if (App.isDesktop && !App.isMacOS)
                     WindowButtons(
                       key: ValueKey(windowButtonKey),
