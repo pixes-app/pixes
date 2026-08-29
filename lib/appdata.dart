@@ -28,6 +28,7 @@ class _Appdata {
     "readingLineHeight": 1.5,
     "readingParagraphSpacing": 8.0,
     "readingAutoScrollSpeed": 40.0,
+    "readingKeepScreenOnDuringAutoScroll": true,
     "blockTags": [],
     "shortcuts": <int>[
       LogicalKeyboardKey.arrowDown.keyId,

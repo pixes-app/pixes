@@ -20,6 +20,8 @@ void main() {
   testWidgets('novel auto-scroll moves, changes speed, and stops safely',
       (tester) async {
     final originalSpeed = appdata.settings["readingAutoScrollSpeed"];
+    final originalScreenAwake =
+        appdata.settings["readingKeepScreenOnDuringAutoScroll"];
     appdata.settings["readingAutoScrollSpeed"] = 40.0;
     final titleBarController =
         StateController.put<TitleBarController>(TitleBarController());
@@ -27,6 +29,8 @@ void main() {
 
     addTearDown(() {
       appdata.settings["readingAutoScrollSpeed"] = originalSpeed;
+      appdata.settings["readingKeepScreenOnDuringAutoScroll"] =
+          originalScreenAwake;
       Network.instance = null;
       StateController.remove<TitleBarController>();
     });
@@ -88,6 +92,10 @@ void main() {
       find.byKey(const ValueKey('novel-auto-scroll-speed')),
     );
     expect(slider.value, 80.0);
+    final screenAwake = tester.widget<Checkbox>(
+      find.byKey(const ValueKey('novel-keep-screen-on-auto-scroll')),
+    );
+    expect(screenAwake.checked, isTrue);
     slider.onChanged!(100.0);
     await tester.pump();
     expect(appdata.settings["readingAutoScrollSpeed"], 100.0);
@@ -107,6 +115,8 @@ void main() {
     }
     expect(position.pixels - updatedSpeedStart, closeTo(100, 1));
     _action(titleBarController, 'Pause').onPressed();
+
+    appdata.settings["readingKeepScreenOnDuringAutoScroll"] = true;
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 300));

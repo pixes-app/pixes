@@ -14,6 +14,7 @@ import 'package:pixes/network/translator.dart';
 import 'package:pixes/pages/image_page.dart';
 import 'package:pixes/pages/main_page.dart';
 import 'package:pixes/utils/ext.dart';
+import 'package:pixes/utils/screen_awake.dart';
 import 'package:pixes/utils/translation.dart';
 
 const double _minAutoScrollSpeed = 10.0;
@@ -52,6 +53,8 @@ class _NovelReadingPageState extends LoadingState<NovelReadingPage, String>
 
   bool _isAutoScrolling = false;
 
+  bool _isScreenAwake = false;
+
   bool isShowingSettings = false;
 
   String? translatedContent;
@@ -81,6 +84,7 @@ class _NovelReadingPageState extends LoadingState<NovelReadingPage, String>
           context,
           () {
             setState(() {});
+            _syncScreenAwake();
           },
           TranslationController(
             content: data!,
@@ -174,19 +178,31 @@ class _NovelReadingPageState extends LoadingState<NovelReadingPage, String>
       return;
     }
     _isAutoScrolling = true;
+    _syncScreenAwake();
     _lastAutoScrollTick = null;
     _autoScrollTicker.start();
     _refreshAutoScrollAction();
   }
 
   void _stopAutoScroll({bool updateAction = true}) {
-    if (!_isAutoScrolling) return;
+    if (!_isAutoScrolling && !_isScreenAwake) return;
     _isAutoScrolling = false;
+    _syncScreenAwake();
     _lastAutoScrollTick = null;
     _autoScrollTicker.stop();
     if (updateAction) {
       _refreshAutoScrollAction();
     }
+  }
+
+  bool get _keepScreenOnDuringAutoScroll =>
+      appdata.settings["readingKeepScreenOnDuringAutoScroll"] != false;
+
+  void _syncScreenAwake() {
+    final shouldKeepAwake = _isAutoScrolling && _keepScreenOnDuringAutoScroll;
+    if (_isScreenAwake == shouldKeepAwake) return;
+    _isScreenAwake = shouldKeepAwake;
+    ScreenAwake.setEnabled(shouldKeepAwake);
   }
 
   void _handleAutoScrollTick(Duration elapsed) {
@@ -675,6 +691,26 @@ class __NovelReadingSettingsState extends State<_NovelReadingSettings> {
                 label: "${(_getAutoScrollSpeed() / 10).round()}",
               ),
               trailing: Text("${(_getAutoScrollSpeed() / 10).round()} / 10"),
+            ),
+          ).paddingHorizontal(8).paddingBottom(8),
+          Card(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              title: Text("Keep Screen On During Auto Scroll".tl),
+              trailing: Checkbox(
+                key: const ValueKey("novel-keep-screen-on-auto-scroll"),
+                checked:
+                    appdata.settings["readingKeepScreenOnDuringAutoScroll"] !=
+                        false,
+                onChanged: (value) {
+                  setState(() {
+                    appdata.settings["readingKeepScreenOnDuringAutoScroll"] =
+                        value ?? true;
+                  });
+                  appdata.writeSettings();
+                  widget.callback();
+                },
+              ),
             ),
           ).paddingHorizontal(8).paddingBottom(8),
           // 深色模式
