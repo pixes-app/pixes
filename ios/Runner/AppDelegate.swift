@@ -21,6 +21,16 @@ import Flutter
         }
     }
 
+    let screenAwakeChannel = FlutterMethodChannel(name: "pixes/screen_awake", binaryMessenger: controller.binaryMessenger)
+    screenAwakeChannel.setMethodCallHandler { (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
+        guard call.method == "setKeepScreenOn", let enabled = call.arguments as? Bool else {
+            result(FlutterMethodNotImplemented)
+            return
+        }
+        UIApplication.shared.isIdleTimerDisabled = enabled
+        result(nil)
+    }
+
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
